@@ -160,6 +160,10 @@
 
 			function poll(){
 				var fakeurl = url.replace('ws:', 'http:').replace('wss:', 'https:');
+				if (fake.readyState == CONNECTING){
+						fake.readyState = OPEN;
+						fake.onopen(fake);
+				}
 
 				xhr = $.ajax({
 					type: 'GET',
@@ -169,10 +173,6 @@
 					data: {},
 					headers: {'X-Socket-Transport': 'xhrPolling'},
 					success: function(data){
-						if (fake.readyState == CONNECTING){
-							fake.readyState = OPEN;
-							fake.onopen(fake);
-						}
 						// Connection might have closed without a response body
 						if (data.length != 0){
 							fake.onmessage({'data': data});
