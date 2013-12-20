@@ -207,7 +207,7 @@
 				if (t){
 					// inform the client code that we have chosen a transport
 					if(options.ontransport) {
-						options.ontransport(t);
+						options.ontransport.call(that, t);
 					}
 
 					var ret = new t.transport(url);
