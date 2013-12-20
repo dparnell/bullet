@@ -61,7 +61,7 @@
 			}
 
 			if (transport){
-				return {'heart': true, 'transport': transport};
+				return {'heart': true, 'name': 'websocket', 'transport': transport};
 			}
 
 			return null;
@@ -107,7 +107,7 @@
 				}
 			};
 
-			return {'heart': false, 'transport': function(){ return fake; }};
+			return {'heart': false, 'name': 'eventsource', 'transport': function(){ return fake; }};
 		},
 
 		xhrPolling: function(){
@@ -193,18 +193,21 @@
 
 			nextPoll();
 
-			return {'heart': false, 'transport': function(){ return fake; }};
+			return {'heart': false, 'name': 'http', 'transport': function(){ return fake; }};
 		}
 	};
 
 	var tn = 0;
-	function next(){
+	function next(that){
 		var c = 0;
 
 		for (var f in transports){
 			if (tn == c){
 				var t = transports[f]();
 				if (t){
+					// inform the client code that we have chosen a transport
+					that.ontransport(t);
+
 					var ret = new t.transport(url);
 					ret.heart = t.heart;
 					return ret;
@@ -228,17 +231,17 @@
 		var delayMax = 10000;
 
 		var transport;
-		function init(){
+		function init(that){
 			isClosed = false;
 			readyState = CONNECTING;
-			transport = next();
+			transport = next(that);
 
 			if (!transport){
 				// Hard disconnect, inform the user and retry later
 				delay = delayDefault;
 				tn = 0;
 				stream.ondisconnect();
-				setTimeout(function(){init();}, delayMax);
+				setTimeout(function(){init(that);}, delayMax);
 				return false;
 			}
 
@@ -283,7 +286,7 @@
 					isClosed = true;
 
 					setTimeout(function(){
-						init();
+						init(that);
 					}, delay);
 				}
 			};
@@ -292,8 +295,9 @@
 				stream.onmessage(e);
 			};
 		}
-		init();
+		init(this);
 
+		this.ontransport = function(){};
 		this.onopen = function(){};
 		this.onmessage = function(){};
 		this.ondisconnect = function(){};
