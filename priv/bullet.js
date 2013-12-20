@@ -206,7 +206,9 @@
 				var t = transports[f]();
 				if (t){
 					// inform the client code that we have chosen a transport
-					that.ontransport(t);
+					if(options.ontransport) {
+						options.ontransport(t);
+					}
 
 					var ret = new t.transport(url);
 					ret.heart = t.heart;
@@ -295,9 +297,7 @@
 				stream.onmessage(e);
 			};
 		}
-		init(this);
 
-		this.ontransport = function(){};
 		this.onopen = function(){};
 		this.onmessage = function(){};
 		this.ondisconnect = function(){};
@@ -320,6 +320,8 @@
 				transport.close();
 			}
 		};
+
+		init(this);		
 	};
 
 	return stream;
