@@ -22,16 +22,24 @@ handle(Req, State) ->
 <body>
 	<p><input type=\"checkbox\" checked=\"yes\" id=\"enable_best\"></input>
 		Current time (best source): <span id=\"time_best\">unknown</span>
-		<span> </span><span id=\"status_best\">unknown</span></p>
+		<span></span><span id=\"status_best\">unknown</span>
+		<button id=\"send_best\">Send Time</button></p>
+	<p><input type=\"checkbox\" checked=\"yes\" id=\"enable_best_nows\"></input>
+		Current time (best source non-websocket): <span id=\"time_best_nows\">unknown</span>
+		<span></span><span id=\"status_best_nows\">unknown</span>
+		<button id=\"send_best_nows\">Send Time</button></p>
 	<p><input type=\"checkbox\" checked=\"yes\" id=\"enable_websocket\"></input>
 		Current time (websocket only): <span id=\"time_websocket\">unknown</span>
-		<span> </span><span id=\"status_websocket\">unknown</span></p>
+		<span></span><span id=\"status_websocket\">unknown</span>
+		<button id=\"send_websocket\">Send Time</button></p>
 	<p><input type=\"checkbox\" checked=\"yes\" id=\"enable_eventsource\"></input>
 		Current time (eventsource only): <span id=\"time_eventsource\">unknown</span>
-		<span> </span><span id=\"status_eventsource\">unknown</span></p>
+		<span></span><span id=\"status_eventsource\">unknown</span>
+		<button id=\"send_eventsource\">Send Time</button></p>
 	<p><input type=\"checkbox\" checked=\"yes\" id=\"enable_polling\"></input>
 		Current time (polling only): <span id=\"time_polling\">unknown</span>
-		<span> </span><span id=\"status_polling\">unknown</span></p>
+		<span></span><span id=\"status_polling\">unknown</span>
+		<button id=\"send_polling\">Send Time</button></p>
 
 	<script
 		src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js\">
@@ -40,10 +48,10 @@ handle(Req, State) ->
 	<script type=\"text/javascript\">
 // <![CDATA[
 $(document).ready(function(){
-	var start = function(name, options) {
+	var start = function(name, url, options) {
 		var bullet;
 		var open = function(){
-			bullet = $.bullet('ws://localhost:8080/bullet', options);
+			bullet = $.bullet(url, options);
 			bullet.onopen = function(){
 				$('#status_' + name).text('online');
 			};
@@ -69,14 +77,21 @@ $(document).ready(function(){
 				bullet = null;
 			}
 		});
+		$('#send_' + name).on('click', function(){
+			if (bullet) {	
+				bullet.send('time: ' + name + ' '
+					+ $('#time_' + name).text());
+			}
+		});
 	};
 
-	start('best', {});
-	start('websocket', {'disableEventSource': true,
+	start('best', 'ws://localhost:8080/bullet', {});
+	start('best_nows', 'http://localhost:8080/bullet', {});
+	start('websocket', 'ws://localhost:8080/bullet', {'disableEventSource': true,
 		'disableXHRPolling': true});
-	start('eventsource', {'disableWebSocket': true,
+	start('eventsource', 'ws://localhost:8080/bullet', {'disableWebSocket': true,
 		'disableXHRPolling': true});
-	start('polling', {'disableWebSocket': true,
+	start('polling', 'ws://localhost:8080/bullet', {'disableWebSocket': true,
 		'disableEventSource': true});
 });
 // ]]>

@@ -1,4 +1,4 @@
-%% Copyright (c) 2011-2012, Loïc Hoguin <essen@ninenines.eu>
+%% Copyright (c) 2011-2012, LoÃ¯c Hoguin <essen@ninenines.eu>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -29,10 +29,9 @@
 	handler :: module(),
 	handler_state :: term(),
 	% poll or eventsource for GET requests
-	get_mode :: 'undefined' | 'poll' | 'eventsource'
+	get_mode :: 'undefined' | 'poll' | 'eventsource',
+	timeout = infinity :: timeout()
 }).
-
--define(TIMEOUT, 60000). %% @todo Configurable.
 
 %% HTTP.
 
@@ -53,6 +52,7 @@ init(Transport, Req, Opts) ->
 
 init(Transport, Req, Opts, <<"GET">>) ->
 	{handler, Handler} = lists:keyfind(handler, 1, Opts),
+	Timeout = get_value(timeout, Opts, 60000),
 	State = #state{handler=Handler},
 	{GetMode, Req2} = get_mode(Req),
 	Active = case GetMode of
@@ -64,7 +64,7 @@ init(Transport, Req, Opts, <<"GET">>) ->
 			{ok, Req4} = start_get_mode(GetMode, Req3),
 			Req5 = cowboy_req:compact(Req4),
 			{loop, Req5, State#state{handler_state=HandlerState,
-				get_mode=GetMode}, ?TIMEOUT, hibernate};
+				get_mode=GetMode}, Timeout, hibernate};
 		{shutdown, Req3, HandlerState} ->
 			{shutdown, Req3, State#state{handler_state=HandlerState}}
 	end;
@@ -126,12 +126,13 @@ terminate(_Reason, Req, #state{handler=Handler, handler_state=HandlerState}) ->
 
 websocket_init(Transport, Req, Opts) ->
 	{handler, Handler} = lists:keyfind(handler, 1, Opts),
+	Timeout = get_value(timeout, Opts, 60000),
 	State = #state{handler=Handler},
 	case Handler:init(Transport, Req, Opts, true) of
 		{ok, Req2, HandlerState} ->
 			Req3 = cowboy_req:compact(Req2),
 			{ok, Req3, State#state{handler_state=HandlerState},
-				?TIMEOUT, hibernate};
+				Timeout, hibernate};
 		{shutdown, Req2, _HandlerState} ->
 			{shutdown, Req2}
 	end.
@@ -143,7 +144,9 @@ websocket_handle({text, Data}, Req,
 			{ok, Req2, State#state{handler_state=HandlerState2}, hibernate};
 		{reply, Reply, Req2, HandlerState2} ->
 			{reply, {text, Reply}, Req2,
-				State#state{handler_state=HandlerState2}, hibernate}
+				State#state{handler_state=HandlerState2}, hibernate};
+		{shutdown, Req2, HandlerState2} ->
+			{shutdown, Req2, State#state{handler_state=HandlerState2}}
 	end;
 websocket_handle(_Frame, Req, State) ->
 	{ok, Req, State, hibernate}.
@@ -155,7 +158,9 @@ websocket_info(Info, Req, State=#state{
 			{ok, Req2, State#state{handler_state=HandlerState2}, hibernate};
 		{reply, Reply, Req2, HandlerState2} ->
 			{reply, {text, Reply}, Req2,
-				State#state{handler_state=HandlerState2}, hibernate}
+				State#state{handler_state=HandlerState2}, hibernate};
+		{shutdown, Req2, HandlerState2} ->
+			{shutdown, Req2, State#state{handler_state=HandlerState2}}
 	end.
 
 websocket_terminate(_Reason, Req,
@@ -193,3 +198,13 @@ reply_get_mode(eventsource, Data, Req) ->
 		Line <- binary:split(Bin, [<<"\r\n">>, <<"\r">>, <<"\n">>], [global])],
 	ok = cowboy_req:chunk([Event, <<"\n">>], Req),
 	{loop, Req}.
+
+%% Internal.
+
+%% @doc Faster alternative to proplists:get_value/3.
+%% @private
+get_value(Key, Opts, Default) ->
+	case lists:keyfind(Key, 1, Opts) of
+		{_, Value} -> Value;
+		_ -> Default
+	end.
