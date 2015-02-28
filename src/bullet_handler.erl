@@ -99,7 +99,10 @@ handle(Req, State=#state{handler=Handler, handler_state=HandlerState},
 		{error, _} ->
 			%% An error occurred, stop there.
 			{ok, Req, State}
-	end.
+	end;
+handle(Req, State, _Method) ->
+    %% pass this request on to the Handler
+    Handler:handle(Req, State).
 
 info(Message, Req,
 		State=#state{get_mode=GetMode, handler=Handler,
